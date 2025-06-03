@@ -2,55 +2,110 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Trams en Temps Réel – Reims</title>
+  <title>Trams – Grand Reims</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 2em; background: #f4f4f4; }
+    body { font-family: sans-serif; margin: 2em; background: #f9f9f9; }
     h1 { font-size: 1.8em; }
-    input[type="text"] { padding: 0.5em; width: 300px; margin-bottom: 1em; }
-    .tram { background: white; border: 1px solid #ccc; border-radius: 8px; padding: 1em; margin-bottom: 1em; }
+    select, button { padding: 0.5em; margin-right: 10px; }
+    .tram { background: white; border: 1px solid #ccc; padding: 1em; margin: 1em 0; border-radius: 8px; }
+    #map { height: 300px; margin-top: 1em; border: 1px solid #888; border-radius: 6px; }
     .hidden { display: none; }
+    .history { background: #fffbe6; padding: 1em; border: 1px solid #ccc; border-radius: 6px; margin-top: 1em; }
   </style>
 </head>
 <body>
   <h1>🟢 Prochains trams à Reims</h1>
-  <input type="text" id="search" placeholder="Filtrer par ligne ou arrêt...">
+
+  <label for="routeSelect">Ligne :</label>
+  <select id="routeSelect"><option value="">Toutes</option></select>
+  <button onclick="fetchTrams(true)">🔄 Actualiser</button>
+
   <div id="message" class="hidden">🚫 Aucun tram en circulation pour le moment.</div>
-  <div id="tram-list"></div>
+  <div id="tramList"></div>
 
+  <div id="map"></div>
+
+  <div class="history">
+    <strong>📈 Historique des passages</strong>
+    <ul id="historyList"></ul>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    async function fetchTrams() {
-      const res = await fetch('https://reims-tram-proxy.vercel.app/api');
-      const data = await res.json();
-      const list = document.getElementById('tram-list');
-      const msg = document.getElementById('message');
+    const apiUrl = "https://reims-tram-proxy.vercel.app/api";
+    let map;
+    let markerLayer;
+    let interval;
 
-      if (!data.length) {
-        msg.classList.remove('hidden');
-        return;
-      }
-
-      msg.classList.add('hidden');
-      list.innerHTML = '';
-      data.forEach(d => {
-        const el = document.createElement('div');
-        el.className = 'tram';
-        el.innerHTML = `
-          <strong>Ligne :</strong> ${d.routeId}<br>
-          <strong>Arrêt :</strong> ${d.stopName || d.stopId}<br>
-          <strong>Passage :</strong> ${new Date(d.arrivalTime * 1000).toLocaleTimeString()}
-        `;
-        list.appendChild(el);
-      });
-
-      document.getElementById('search').addEventListener('input', e => {
-        const term = e.target.value.toLowerCase();
-        Array.from(document.getElementsByClassName('tram')).forEach(div => {
-          div.style.display = div.textContent.toLowerCase().includes(term) ? 'block' : 'none';
-        });
-      });
+    function initMap() {
+      map = L.map('map').setView([49.2578, 4.0317], 13); // Reims centre
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+      markerLayer = L.layerGroup().addTo(map);
     }
 
+    function saveToHistory(data) {
+      const hist = JSON.parse(localStorage.getItem('tramHistory') || '[]');
+      const timestamp = new Date().toLocaleTimeString();
+      hist.push({ timestamp, count: data.length });
+      if (hist.length > 20) hist.shift();
+      localStorage.setItem('tramHistory', JSON.stringify(hist));
+      displayHistory();
+    }
+
+    function displayHistory() {
+      const hist = JSON.parse(localStorage.getItem('tramHistory') || '[]');
+      const list = document.getElementById('historyList');
+      list.innerHTML = hist.map(h => `<li>${h.timestamp} – ${h.count} trams</li>`).join('');
+    }
+
+    function populateSelect(data) {
+      const select = document.getElementById('routeSelect');
+      const routes = [...new Set(data.map(t => t.routeId))];
+      select.innerHTML = '<option value="">Toutes</option>' + routes.map(r => `<option value="${r}">${r}</option>`).join('');
+    }
+
+    async function fetchTrams(isManual = false) {
+      const res = await fetch(apiUrl);
+      const data = await res.json();
+      const container = document.getElementById("tramList");
+      const msg = document.getElementById("message");
+      const filter = document.getElementById("routeSelect").value;
+
+      container.innerHTML = '';
+      markerLayer.clearLayers();
+
+      const filtered = filter ? data.filter(t => t.routeId === filter) : data;
+
+      if (!filtered.length) {
+        msg.classList.remove("hidden");
+      } else {
+        msg.classList.add("hidden");
+        filtered.forEach(t => {
+          const div = document.createElement("div");
+          div.className = "tram";
+          div.innerHTML = `
+            <strong>Ligne :</strong> ${t.routeId}<br>
+            <strong>Arrêt :</strong> ${t.stopName || t.stopId}<br>
+            <strong>Passage :</strong> ${new Date(t.arrivalTime * 1000).toLocaleTimeString()}
+          `;
+          container.appendChild(div);
+          // Position aléatoire simulée (car pas dans GTFS-RT)
+          const lat = 49.25 + Math.random() * 0.02;
+          const lon = 4.03 + Math.random() * 0.02;
+          L.marker([lat, lon]).addTo(markerLayer).bindPopup(`Ligne ${t.routeId}`);
+        });
+      }
+
+      if (!isManual) populateSelect(data);
+      saveToHistory(data);
+    }
+
+    initMap();
     fetchTrams();
+    interval = setInterval(fetchTrams, 30000); // toutes les 30 sec
   </script>
 </body>
 </html>
