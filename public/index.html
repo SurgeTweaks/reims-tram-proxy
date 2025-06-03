@@ -113,6 +113,20 @@
             select.innerHTML = '<option value="">Toutes</option>' + routes.map(r => `<option value="${r}">${r}</option>`).join('');
         }
 
+        function saveToHistory(data) {
+            let hist = JSON.parse(localStorage.getItem('tramHistory') || '[]');
+            const timestamp = new Date().toLocaleTimeString();
+
+            if (hist.length >= 10) {
+                hist = []; // 🧹 réinitialisation
+            }
+
+            hist.push({ timestamp, count: data.length });
+            localStorage.setItem('tramHistory', JSON.stringify(hist));
+            displayHistory();
+        }
+
+
         async function fetchTrams(isManual = false) {
             const res = await fetch(apiUrl);
             const data = await res.json();
