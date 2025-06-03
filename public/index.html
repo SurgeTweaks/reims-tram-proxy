@@ -85,6 +85,13 @@
             markerLayer = L.layerGroup().addTo(map);
         }
 
+        const tramIcon = L.icon({
+            iconUrl: 'public/tram.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
         function saveToHistory(data) {
             const hist = JSON.parse(localStorage.getItem('tramHistory') || '[]');
             const timestamp = new Date().toLocaleTimeString();
@@ -132,10 +139,11 @@
           `;
                     container.appendChild(div);
                     if (t.position) {
-                        L.marker([t.position.lat, t.position.lon])
+                        L.marker([t.position.lat, t.position.lon], { icon: tramIcon })
                             .addTo(markerLayer)
                             .bindPopup(`Ligne ${t.routeId}`);
                     }
+
 
                 });
             }
