@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Trams en Temps Réel – Reims</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; background: #f4f4f4; }
+    h1 { font-size: 1.8em; }
+    input[type="text"] { padding: 0.5em; width: 300px; margin-bottom: 1em; }
+    .tram { background: white; border: 1px solid #ccc; border-radius: 8px; padding: 1em; margin-bottom: 1em; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>🟢 Prochains trams à Reims</h1>
+  <input type="text" id="search" placeholder="Filtrer par ligne ou arrêt...">
+  <div id="message" class="hidden">🚫 Aucun tram en circulation pour le moment.</div>
+  <div id="tram-list"></div>
+
+  <script>
+    async function fetchTrams() {
+      const res = await fetch('https://reims-tram-proxy.vercel.app/api');
+      const data = await res.json();
+      const list = document.getElementById('tram-list');
+      const msg = document.getElementById('message');
+
+      if (!data.length) {
+        msg.classList.remove('hidden');
+        return;
+      }
+
+      msg.classList.add('hidden');
+      list.innerHTML = '';
+      data.forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'tram';
+        el.innerHTML = `
+          <strong>Ligne :</strong> ${d.routeId}<br>
+          <strong>Arrêt :</strong> ${d.stopName || d.stopId}<br>
+          <strong>Passage :</strong> ${new Date(d.arrivalTime * 1000).toLocaleTimeString()}
+        `;
+        list.appendChild(el);
+      });
+
+      document.getElementById('search').addEventListener('input', e => {
+        const term = e.target.value.toLowerCase();
+        Array.from(document.getElementsByClassName('tram')).forEach(div => {
+          div.style.display = div.textContent.toLowerCase().includes(term) ? 'block' : 'none';
+        });
+      });
+    }
+
+    fetchTrams();
+  </script>
+</body>
+</html>

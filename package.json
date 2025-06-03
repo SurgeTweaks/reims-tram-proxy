@@ -1,0 +1,11 @@
+{
+    "name": "reims-tram-proxy",
+    "version": "1.0.0",
+    "main": "api/index.js",
+    "dependencies": {
+      "protobufjs": "^7.2.4",
+      "node-fetch": "^3.3.2"
+    },
+    "type": "module"
+  }
+  
